@@ -261,6 +261,14 @@ class _MovieExplorerAppState extends State<MovieExplorerApp> {
                               ),
                               onPressed: () => _toggleFavorite(movie.imdbID),
                             ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MovieDetailPage(imdbID: movie.imdbID),
+                                ),
+                              );
+                            },
                           ),
                         );
                       },
@@ -293,6 +301,74 @@ class Movie {
       year: json['Year']?.toString() ?? json['year']?.toString() ?? 'Unknown',
       poster: json['Poster'] ?? json['poster'] ?? 'N/A',
       imdbID: json['imdbID'] ?? json['id'] ?? '',
+    );
+  }
+}
+
+class MovieDetailPage extends StatelessWidget {
+  final String imdbID;
+
+  static const String omdbApiKey = 'e87ba178';
+
+  const MovieDetailPage({super.key, required this.imdbID});
+
+  Future<Map<String, dynamic>?> fetchMovieDetail() async {
+    final url = Uri.parse('https://www.omdbapi.com/?apikey=$omdbApiKey&i=$imdbID&plot=full');
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['Response'] == 'True') {
+        return data;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Movie Details")),
+      body: FutureBuilder<Map<String, dynamic>?>(
+        future: fetchMovieDetail(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data == null) {
+            return const Center(child: Text('Failed to load movie details.'));
+          }
+
+          final movie = snapshot.data!;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (movie['Poster'] != null && movie['Poster'] != 'N/A')
+                  Center(
+                    child: Image.network(movie['Poster'], height: 300),
+                  ),
+                const SizedBox(height: 16),
+                Text(
+                  movie['Title'] ?? 'Unknown Title',
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text("Year: ${movie['Year'] ?? 'Unknown'}"),
+                Text("Genre: ${movie['Genre'] ?? 'N/A'}"),
+                Text("Director: ${movie['Director'] ?? 'N/A'}"),
+                const SizedBox(height: 12),
+                Text(
+                  "Plot:",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(movie['Plot'] ?? 'No plot available.'),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
